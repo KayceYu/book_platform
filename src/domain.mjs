@@ -1,6 +1,6 @@
 export const MEMBERS = [
   { id: 'chang', name: '肠炎宁', color: '#EAF5EE', ink: '#1F7552', avatar: 'leaf' },
-  { id: 'cha', name: '查', color: '#FFF1D4', ink: '#895400', avatar: 'sun' },
+  { id: 'cha', name: '查老师', color: '#FFF1D4', ink: '#895400', avatar: 'sun' },
   { id: 'four', name: '404', color: '#E7F1FC', ink: '#345A8C', avatar: 'cloud' },
   { id: 'xia', name: '夏洛', color: '#FCEAF1', ink: '#AD436A', avatar: 'flower' },
   { id: 'fish', name: '烤鱼', color: '#E8F4F4', ink: '#28696C', avatar: 'fish' },

@@ -8,7 +8,7 @@ const response=await request('/api/state');
 if(!response.ok)throw new Error('Shared backend returned '+response.status);
 if(response.headers.get('access-control-allow-origin')!==origin)throw new Error('Pages origin is not allowed by backend');
 const state=await response.json();if(!Array.isArray(state.events)||state.events.length!==0)throw new Error('Anonymous response exposes activity data');
-const badLogin=await request('/api/identity',{method:'POST',body:JSON.stringify({memberId:'xia',accessCode:'intentionally-invalid-public-smoke-test'})});
+const badLogin=await request('/api/identity',{method:'POST',body:JSON.stringify({accessCode:'0000'})});
 if(badLogin.status!==401)throw new Error('Invalid group code was not rejected: '+badLogin.status);
 const write=await request('/api/events',{method:'POST',body:'{}'});
 if(write.status!==401)throw new Error('Unauthenticated write was not rejected');

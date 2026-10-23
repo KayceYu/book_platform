@@ -17,7 +17,7 @@
 后端地址是包含 `/api` 前缀之前的 URL，例如 `https://api.example.com`。前端会调用：
 
 - `GET /api/state`：活动、报名、评论、费用、变更与当前身份。
-- `POST /api/identity`：选择固定成员身份。
+- `POST /api/identity`：提交 `{accessCode}`，后端自动识别成员；`{memberId:null}` 退出。
 - `POST /api/events`，`PUT/DELETE /api/events/:id`：活动管理。
 - `POST /api/events/:id/rsvp`、`/ack`：报名与版本确认。
 - `POST/PUT/DELETE /api/events/:id/comments[/id]`：讨论。
@@ -26,15 +26,17 @@
 
 跨域请求使用精确来源白名单。现有 Node 后端通过 `ALLOWED_ORIGINS=https://kayceyu.github.io` 开启 CORS，支持 `Content-Type`、`X-Member-Id` 和 `Authorization`。其他来源会被拒绝；不能把来源白名单当作身份验证。
 
-本地开发保留轻量昵称选择；生产 Edge Function 要求小队口令和签名会话。管理密钥仅由 Supabase 服务端环境提供，不进入前端。
+本地开发保留轻量昵称选择；生产 Edge Function 使用个人四位数字口令自动识别身份，并签发会话。管理密钥仅由 Supabase 服务端环境提供，不进入前端。
 
 ## 后端候选与当前状态
 
 选定方向为 **Supabase Free**，提供 PostgreSQL、Auth 和访问控制；免费项目低活跃时可能暂停，详见 [定价](https://supabase.com/pricing)。免费项目 `cougeju` 已创建，API 地址已写入 `config/pages.json`。数据库表、访问控制与 Edge Function 的源文件位于 `supabase/`。
 
-本地 API 使用 SQLite/D1；发布后由 PostgreSQL 兼容层运行同一套业务规则。所有表启用 RLS 并拒绝浏览器直接访问，数据库查询函数仅授权服务端角色调用。Edge Function 验证小队口令并签发有效期 7 天的签名会话，再从验证过的会话中确定当前成员。
+本地 API 使用 SQLite/D1；发布后由 PostgreSQL 兼容层运行同一套业务规则。所有表启用 RLS 并拒绝浏览器直接访问，数据库查询函数仅授权服务端角色调用。Edge Function 在数据库验证个人口令，签发有效期 7 天的签名会话，再从验证过的会话中确定当前成员。客户端提交的昵称不能改变身份。
 
-小队口令只保存摘要，不写入仓库和网页。组织者单独保存口令文件并发给六位伙伴。共享口令用于小队访问控制；持有口令的人仍可以选择六个昵称，不是个人实名验证。
+个人口令以加盐 bcrypt 保存于私有表，实际口令及对应关系通过私有配置写入数据库，不进入仓库或网页。连续输错 5 次会暂停该来源登录，15 分钟后恢复；另设整体失败次数限制。口令为四位数字，属于小队便捷访问控制。此次升级使旧公共口令会话失效，现有报名、评论及费用仍保留。
+
+新环境依次应用 `supabase/schema.sql`、`supabase/security.sql`、`supabase/member-auth.sql`，再私下配置六位成员的 bcrypt 口令。`supabase/handler.mjs` 是生产与自动化测试共用的请求入口。
 
 ## 可选：运行现有 Node API
 
