@@ -1,0 +1,12 @@
+DROP AGGREGATE public.cg_json_group_array(text);
+DROP FUNCTION public.cg_json_array_append(jsonb,text);
+CREATE POLICY no_direct_client_access ON public.events AS RESTRICTIVE FOR ALL TO anon,authenticated USING(false) WITH CHECK(false);
+CREATE POLICY no_direct_client_access ON public.rsvps AS RESTRICTIVE FOR ALL TO anon,authenticated USING(false) WITH CHECK(false);
+CREATE POLICY no_direct_client_access ON public.comments AS RESTRICTIVE FOR ALL TO anon,authenticated USING(false) WITH CHECK(false);
+CREATE POLICY no_direct_client_access ON public.expenses AS RESTRICTIVE FOR ALL TO anon,authenticated USING(false) WITH CHECK(false);
+CREATE POLICY no_direct_client_access ON public.acknowledgements AS RESTRICTIVE FOR ALL TO anon,authenticated USING(false) WITH CHECK(false);
+CREATE POLICY no_direct_client_access ON public.changes AS RESTRICTIVE FOR ALL TO anon,authenticated USING(false) WITH CHECK(false);
+CREATE POLICY no_direct_client_access ON public.app_meta AS RESTRICTIVE FOR ALL TO anon,authenticated USING(false) WITH CHECK(false);
+CREATE POLICY no_direct_client_access ON public.cg_access_config AS RESTRICTIVE FOR ALL TO anon,authenticated USING(false) WITH CHECK(false);
+REVOKE EXECUTE ON FUNCTION public.cg_json_extract(text,text),public.cg_json_array_length(text,text),public.cg_json_each(text),public.cg_json_each(text,text),public.cg_json(jsonb),public.cg_json_set(text,text,jsonb),public.cg_json_insert(text,text,text) FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.cg_json_extract(text,text),public.cg_json_array_length(text,text),public.cg_json_each(text),public.cg_json_each(text,text),public.cg_json(jsonb),public.cg_json_set(text,text,jsonb),public.cg_json_insert(text,text,text) TO service_role;
