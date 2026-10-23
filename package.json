@@ -1,0 +1,28 @@
+{
+  "name": "cou-ge-ju",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node server/dev.mjs",
+    "build": "vite build && node scripts/build-worker.mjs",
+    "start": "NODE_ENV=production node server/dev.mjs",
+    "test": "node tests/api.test.mjs && node tests/cors.test.mjs",
+    "db:generate": "drizzle-kit generate",
+    "package": "npm run build && node scripts/package.mjs",
+    "build:pages": "node scripts/decode-assets.mjs && vite build --mode pages"
+  },
+  "dependencies": {
+    "lucide-react": "^0.468.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "drizzle-kit": "^0.31.4",
+    "drizzle-orm": "^0.44.0",
+    "esbuild": "^0.25.0",
+    "playwright-core": "^1.64.1",
+    "vite": "^6.1.0"
+  }
+}
