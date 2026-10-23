@@ -1,0 +1,8 @@
+node_modules/
+dist/
+outputs/
+.local/
+.env*
+.wrangler/
+test-results/
+*.log
