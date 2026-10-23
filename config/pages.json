@@ -1,3 +1,4 @@
 {
-  "apiBaseUrl": ""
+  "apiBaseUrl": "https://nimoeopakwybjnxtxefj.supabase.co/functions/v1/cougeju",
+  "requireAccessCode": true
 }
