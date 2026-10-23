@@ -1,0 +1,9 @@
+.git
+.local
+.sites-runtime
+.wrangler
+node_modules
+dist
+outputs
+test-results
+.env*
