@@ -9,7 +9,10 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react()],
     base: pages ? '/book_platform/' : '/',
-    define: { 'import.meta.env.VITE_API_BASE_URL': JSON.stringify(pages ? apiBaseUrl : (process.env.VITE_API_BASE_URL || '')) },
+    define: {
+      'import.meta.env.VITE_API_BASE_URL': JSON.stringify(pages ? apiBaseUrl : (process.env.VITE_API_BASE_URL || '')),
+      'import.meta.env.VITE_REQUIRE_ACCESS_CODE': JSON.stringify(String(pages && !!config.requireAccessCode)),
+    },
     build: { outDir: 'dist/client' },
   };
 });
