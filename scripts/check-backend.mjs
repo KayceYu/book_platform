@@ -1,0 +1,15 @@
+import {readFile} from 'node:fs/promises';
+const config=JSON.parse(await readFile('config/pages.json','utf8'));
+const base=(process.env.VITE_API_BASE_URL||config.apiBaseUrl||'').replace(/\/+$/,'');
+if(!base)throw new Error('Missing shared backend URL');
+const origin='https://kayceyu.github.io';
+const request=(path,options={})=>fetch(base+path,{...options,signal:AbortSignal.timeout(20000),headers:{Origin:origin,'Content-Type':'application/json',...options.headers}});
+const response=await request('/api/state');
+if(!response.ok)throw new Error('Shared backend returned '+response.status);
+if(response.headers.get('access-control-allow-origin')!==origin)throw new Error('Pages origin is not allowed by backend');
+const state=await response.json();if(!Array.isArray(state.events)||state.events.length!==0)throw new Error('Anonymous response exposes activity data');
+const badLogin=await request('/api/identity',{method:'POST',body:JSON.stringify({memberId:'xia',accessCode:'intentionally-invalid-public-smoke-test'})});
+if(badLogin.status!==401)throw new Error('Invalid group code was not rejected: '+badLogin.status);
+const write=await request('/api/events',{method:'POST',body:'{}'});
+if(write.status!==401)throw new Error('Unauthenticated write was not rejected');
+console.log('Shared backend reachable; CORS, private configuration and anonymous access checks passed.');
