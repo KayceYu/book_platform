@@ -26,13 +26,15 @@
 
 跨域请求使用精确来源白名单。现有 Node 后端通过 `ALLOWED_ORIGINS=https://kayceyu.github.io` 开启 CORS，支持 `Content-Type`、`X-Member-Id` 和 `Authorization`。其他来源会被拒绝；不能把来源白名单当作身份验证。
 
-当前轻量身份选择只识别昵称，无法防止访问者主动冒用其他成员。接入新的公开后端时，需要配合服务端身份验证、固定成员授权及数据库访问策略，不能把管理密钥放入前端。
+本地开发保留轻量昵称选择；生产 Edge Function 要求小队口令和签名会话。管理密钥仅由 Supabase 服务端环境提供，不进入前端。
 
 ## 后端候选与当前状态
 
-选定方向为 **Supabase Free**，提供 PostgreSQL、Auth 和访问控制；免费项目低活跃时可能暂停，详见 [定价](https://supabase.com/pricing)。目前尚未创建 Supabase 项目，也未填写生产后端地址。
+选定方向为 **Supabase Free**，提供 PostgreSQL、Auth 和访问控制；免费项目低活跃时可能暂停，详见 [定价](https://supabase.com/pricing)。免费项目 `cougeju` 已创建，API 地址已写入 `config/pages.json`。数据库表、访问控制与 Edge Function 的源文件位于 `supabase/`。
 
-仓库中的现有 API 使用 SQLite/D1，并不是可直接运行的 Supabase PostgreSQL 实现。连接 Supabase 账户后，需要完成数据库适配、成员验证、访问策略与接口部署，然后写入后端地址并进行双设备验收。
+本地 API 使用 SQLite/D1；发布后由 PostgreSQL 兼容层运行同一套业务规则。所有表启用 RLS 并拒绝浏览器直接访问，数据库查询函数仅授权服务端角色调用。Edge Function 验证小队口令并签发有效期 7 天的签名会话，再从验证过的会话中确定当前成员。
+
+小队口令只保存摘要，不写入仓库和网页。组织者单独保存口令文件并发给六位伙伴。共享口令用于小队访问控制；持有口令的人仍可以选择六个昵称，不是个人实名验证。
 
 ## 可选：运行现有 Node API
 
