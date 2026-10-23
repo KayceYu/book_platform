@@ -1,0 +1,17 @@
+import http from 'node:http';
+import { DatabaseSync } from 'node:sqlite';
+import { readFile, mkdir } from 'node:fs/promises';
+import { resolve, extname, dirname } from 'node:path';
+import { api } from './api.mjs';
+const databasePath=process.env.DATABASE_PATH||process.env.TEST_DB||'.local/data.sqlite';
+await mkdir(dirname(resolve(databasePath)),{recursive:true});
+const sqlite=new DatabaseSync(databasePath);sqlite.exec(await readFile(new URL('./schema.sql',import.meta.url),'utf8'));
+const allowedOrigins=(process.env.ALLOWED_ORIGINS||'').split(',').map(s=>s.trim()).filter(Boolean);
+const wrap = (sql,args=[]) => ({ bind(...v){return wrap(sql,v);},async first(){return sqlite.prepare(sql).get(...args)||null;},async all(){return {results:sqlite.prepare(sql).all(...args)};},async run(){return {meta:sqlite.prepare(sql).run(...args)};} });
+const db={prepare:sql=>wrap(sql),async batch(statements){sqlite.exec('BEGIN');try {const results=[];for(const s of statements)results.push(await s.run());sqlite.exec('COMMIT');return results;}catch(e){sqlite.exec('ROLLBACK');throw e;}}};
+const production=process.env.NODE_ENV==='production';
+const vite=production?null:await (await import('vite')).createServer({server:{middlewareMode:true},appType:'custom'});
+const types={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.svg':'image/svg+xml','.png':'image/png','.webp':'image/webp','.jpg':'image/jpeg'};
+const server=http.createServer(async (req,res)=>{try {const origin=`http://${req.headers.host}`,url=new URL(req.url,origin);if(url.pathname.startsWith('/api/')){const chunks=[];let size=0;for await(const c of req){size+=c.length;if(size>150000){res.writeHead(413);res.end();return;}chunks.push(c);}const request=new Request(url,{method:req.method,headers:req.headers,...(req.method!=='GET'&&req.method!=='HEAD'?{body:Buffer.concat(chunks)}:{})});const result=await api(request,db,{allowedOrigins});res.writeHead(result.status,Object.fromEntries(result.headers));res.end(Buffer.from(await result.arrayBuffer()));return;}const page=async()=>{let html=await readFile(production?'dist/client/index.html':'index.html','utf8');if(vite)html=await vite.transformIndexHtml(url.pathname,html);res.writeHead(200,{'Content-Type':types['.html']});res.end(html);};if(vite){vite.middlewares(req,res,()=>page().catch(e=>{console.error(e);res.writeHead(500);res.end('页面加载失败');}));}else {const file=resolve('dist/client','.'+decodeURIComponent(url.pathname));if(!file.startsWith(resolve('dist/client')+'/'))return page();try {const data=await readFile(file);res.writeHead(200,{'Content-Type':types[extname(file)]||'application/octet-stream'});res.end(data);}catch{await page();}}}catch(e){console.error(e);res.writeHead(500);res.end('服务暂时不可用');}});
+const port=Number(process.env.PORT)||5173;server.listen(port,'0.0.0.0',()=>console.log(`凑个局 ready at http://localhost:${port}`));
+process.on('SIGTERM',()=>{server.close();vite?.close();sqlite.close();process.exit(0);});
