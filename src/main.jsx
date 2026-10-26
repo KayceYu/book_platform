@@ -40,7 +40,7 @@ function App(){
   const [modal,setModal]=useState(null),[toast,setToast]=useState(''),[busy,setBusy]=useState(false),[filter,setFilter]=useState('all'),[query,setQuery]=useState(''),[scheduleMember,setScheduleMember]=useState('all');
   const deferred=useRef(null),toastTimer=useRef();
   const current=data.memberId;
-  const directory=useMemberDirectory(data.profiles||[],current),{MEMBERS,member}=directory;
+  const directory=useMemberDirectory(data.profiles||[]),{MEMBERS,member}=directory;
   const [accessCode,setAccessCode]=useState(''),[identityError,setIdentityError]=useState('');
   const notify=message=>{setToast(message);clearTimeout(toastTimer.current);toastTimer.current=setTimeout(()=>setToast(''),4000);};
   const load=async(initial=false)=>{try{const r=await apiRequest('/api/state');if(!r.ok)throw new Error('数据加载失败');const next=await r.json();setData({...next,profiles:next.profiles||[]});setLoadError('');}catch(e){if(initial)setLoadError(e.message==='共享服务尚未连接，请联系网站管理员配置后重试。'?e.message:'暂时无法连接共享服务，请检查网络后重试。');}finally{if(initial)setLoading(false);}};
@@ -109,7 +109,7 @@ function ProfileEditor({profile,busy,onSave,onClose}) {
     {processing&&<p className="profile-processing" role="status"><LoaderCircle className="spin" size={16}/>正在处理照片…</p>}
     {(avatar||avatar===undefined&&profile.avatarVersion)&&<button type="button" className="text-btn avatar-reset" disabled={processing||busy} onClick={()=>{setAvatar(null);setError('');}}><Trash2 size={14}/>恢复默认头像</button>}
     <Field label="昵称" hint={`${name.length}/24 · 修改昵称不会影响口令和已有报名。`}><input required maxLength={24} value={name} autoComplete="nickname" onChange={event=>setName(event.target.value)} placeholder="希望大家怎么称呼你？"/></Field>
-    <Field label="个人说明" hint={`${bio.length}/300 · 小队成员可见。`}><textarea maxLength={300} rows={4} value={bio} onChange={event=>setBio(event.target.value)} placeholder="喜欢什么、想玩什么，或者一句最近的心情…"/></Field>
+    <Field label="个人说明" hint={`${bio.length}/300 · 公开展示，未登录也可查看。`}><textarea maxLength={300} rows={4} value={bio} onChange={event=>setBio(event.target.value)} placeholder="喜欢什么、想玩什么，或者一句最近的心情…"/></Field>
     {error&&<p className="identity-error" role="alert"><AlertCircle size={16}/>{error}</p>}
     <div className="form-actions"><button type="button" className="btn ghost" onClick={onClose}>取消</button><button type="submit" className="btn primary" disabled={busy||processing||!name.trim()}>{busy?<LoaderCircle size={17} className="spin"/>:<Check size={17}/>}保存资料</button></div>
   </form>;

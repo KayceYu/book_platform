@@ -25,20 +25,20 @@ test('a concurrent signup cannot exceed capacity or partially save another phase
 
 const profileAvatar='data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAACAAIDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwDn6KKKxPCP/9k=';
 
-test('personal profiles follow fixed identities and are shared only with signed-in members',async()=>{
+test('personal profiles are public while fixed identities and edit permissions remain protected',async()=>{
  const saved=await call('profile','PUT',{name:'烤鱼的新昵称',bio:'喜欢一起散步\n周末约饭',version:null},'fish');assert.equal(saved.status,200);
  assert.equal(saved.body.profile.memberId,'fish');assert.equal((await state('xia')).profiles[0].name,'烤鱼的新昵称');
- assert.deepEqual((await state(null)).profiles,[]);
+ const publicState=await state(null);assert.equal(publicState.profiles[0].name,'烤鱼的新昵称');assert.equal(publicState.profiles[0].bio,'喜欢一起散步\n周末约饭');assert.equal(publicState.memberId,null);assert.deepEqual(publicState.events,[]);assert.deepEqual(publicState.rsvps,[]);assert.deepEqual(publicState.expenses,[]);assert.deepEqual(Object.keys(publicState.profiles[0]).sort(),['avatarVersion','bio','memberId','name']);
  assert.equal((await call('profile','PUT',{name:'冒充',bio:'',memberId:'fish'},'xia')).status,403);
  assert.equal((await call('profile','PUT',{name:'未登录',bio:''})).status,401);
  assert.equal(MEMBERS.find(m=>m.id==='fish').name,'烤鱼');
  assert.equal((await call('identity','POST',{memberId:'fish'})).body.memberId,'fish');
 });
-test('avatar uploads stay out of activity polling, require authentication and can be removed',async()=>{
+test('avatar uploads stay out of activity polling, are publicly visible and can be removed',async()=>{
  const saved=await call('profile','PUT',{name:'烤鱼',bio:'',avatar:profileAvatar,version:null},'fish');assert.equal(saved.status,200);
  const profile=saved.body.profile;assert.ok(profile.avatarVersion);assert.equal(JSON.stringify(await state('xia')).includes('data:image'),false);
  const avatarRequest=actor=>api(new Request('https://local.test/api/profiles/fish/avatar',{headers:actor?{cookie:'cg_member='+actor}:{}}),db);
- assert.equal((await avatarRequest(null)).status,401);const image=await avatarRequest('xia');assert.equal(image.status,200);assert.equal(image.headers.get('content-type'),'image/jpeg');assert.equal(image.headers.get('x-content-type-options'),'nosniff');assert.deepEqual(new Uint8Array(await image.arrayBuffer()).slice(0,2),new Uint8Array([255,216]));
+ assert.equal((await avatarRequest(null)).status,200);const image=await avatarRequest('xia');assert.equal(image.status,200);assert.equal(image.headers.get('content-type'),'image/jpeg');assert.equal(image.headers.get('x-content-type-options'),'nosniff');assert.deepEqual(new Uint8Array(await image.arrayBuffer()).slice(0,2),new Uint8Array([255,216]));
  const changed=await call('profile','PUT',{name:'改个昵称',bio:'说明',version:profile.version},'fish');assert.equal(changed.status,200);assert.equal(changed.body.profile.avatarVersion,profile.avatarVersion);
  assert.equal((await call('profile','PUT',{name:'旧版本',bio:'',version:profile.version,avatar:null},'fish')).status,409);assert.equal((await avatarRequest('xia')).status,200);
  assert.equal((await call('profile','PUT',{name:'改个昵称',bio:'',version:changed.body.profile.version,avatar:null},'fish')).status,200);assert.equal((await avatarRequest('xia')).status,404);

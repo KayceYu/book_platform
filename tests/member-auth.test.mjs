@@ -8,12 +8,12 @@ const identities=['chang','cha','four','xia','fish','red'];
 const codes=['0008','8001','8002','8003','8004','8005'];
 const secret='test-service-key';
 const request=(body,headers={})=>new Request('https://example.test/functions/v1/cougeju/api/identity',{method:'POST',headers:{Origin:'https://kayceyu.github.io','Content-Type':'application/json',...headers},body:JSON.stringify(body)});
-function fixture(authenticate) {
+function fixture(authenticate,profileRows=[]) {
  const calls=[];
  const client={async rpc(name,args){calls.push({name,args});if(name==='cg_authenticate_member'){
   if(authenticate)return {data:authenticate(args),error:null};
   const index=codes.indexOf(args.input_code);return {data:index<0?{error:'invalid_code'}:{memberId:identities[index]},error:null};
- }return {data:{results:[],meta:{changes:0}},error:null};}};
+ }return {data:{results:args.query?.includes("LIKE 'profile:%'")?profileRows:[],meta:{changes:0}},error:null};}};
  return {handle:createHandler(client,secret),calls};
 }
 test('six personal codes identify members without a nickname and preserve a leading zero',async()=>{
@@ -52,4 +52,17 @@ test('sessions signed before the individual-code upgrade are rejected',async()=>
  const message=header+'.'+payload;const signature=Buffer.from(await crypto.subtle.sign('HMAC',key,new TextEncoder().encode(message))).toString('base64url');
  assert.equal(await verifySession(message+'.'+signature,secret),null);
  assert.equal(await verifySession(await issueSession('fish',secret),secret),'fish');
+});
+
+test('anonymous and expired sessions see public profiles while activity data and all writes stay protected',async()=>{
+ const profile={memberId:'fish',name:'新的昵称',bio:'公开个人说明',avatarVersion:'image-2',version:'private-edit-version',secret_hash:'must-not-be-public'};
+ const {handle,calls}=fixture(undefined,[{value:JSON.stringify(profile)}]);
+ for(const headers of [{},{Authorization:'Bearer expired.token.value','X-Member-Id':'fish',Cookie:'cg_member=fish'}]){
+  const result=await handle(new Request('https://example.test/cougeju/api/state',{headers}));assert.equal(result.status,200);
+  const state=await result.json();assert.equal(state.memberId,null);assert.deepEqual(state.profiles,[{memberId:'fish',name:'新的昵称',bio:'公开个人说明',avatarVersion:'image-2'}]);
+  for(const field of ['events','rsvps','comments','expenses','changes','acks'])assert.deepEqual(state[field],[]);
+ }
+ assert.equal(calls.every(call=>call.name==='cg_sql'&&call.args.query.includes("LIKE 'profile:%'")),true);
+ const image=await handle(new Request('https://example.test/cougeju/api/profiles/fish/avatar'));assert.equal(image.status,404);
+ const denied=await handle(new Request('https://example.test/cougeju/api/profile',{method:'PUT',headers:{'X-Member-Id':'fish'},body:JSON.stringify({name:'非法改名',bio:''})}));assert.equal(denied.status,401);
 });

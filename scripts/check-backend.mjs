@@ -8,6 +8,12 @@ const response=await request('/api/state');
 if(!response.ok)throw new Error('Shared backend returned '+response.status);
 if(response.headers.get('access-control-allow-origin')!==origin)throw new Error('Pages origin is not allowed by backend');
 const state=await response.json();if(!Array.isArray(state.events)||state.events.length!==0)throw new Error('Anonymous response exposes activity data');
+if(!Array.isArray(state.profiles))throw new Error('Public member profiles are missing');
+for(const profile of state.profiles)if(Object.keys(profile).some(key=>!['memberId','name','bio','avatarVersion'].includes(key)))throw new Error('Public profile includes a private field');
+const publicAvatar=state.profiles.find(profile=>profile.avatarVersion);
+if(publicAvatar){const image=await request('/api/profiles/'+publicAvatar.memberId+'/avatar?v='+encodeURIComponent(publicAvatar.avatarVersion));if(!image.ok||!image.headers.get('content-type')?.includes('image/jpeg'))throw new Error('Public avatar is not accessible');}
+const profileWrite=await request('/api/profile',{method:'PUT',body:JSON.stringify({name:'unauthenticated-check',bio:''})});
+if(profileWrite.status!==401)throw new Error('Unauthenticated profile update was not rejected');
 const badLogin=await request('/api/identity',{method:'POST',body:JSON.stringify({accessCode:'0000'})});
 if(badLogin.status!==401)throw new Error('Invalid group code was not rejected: '+badLogin.status);
 const write=await request('/api/events',{method:'POST',body:'{}'});

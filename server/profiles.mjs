@@ -24,6 +24,10 @@ export function avatarBytes(value) {
 export async function listProfiles(db) {
  return (await db.prepare("SELECT value FROM app_meta WHERE key LIKE 'profile:%'").all()).results.map(row=>JSON.parse(row.value)).filter(profile=>member(profile.memberId));
 }
+export async function publicProfileState(db) {
+ const profiles=(await listProfiles(db)).map(({memberId,name,bio,avatarVersion})=>({memberId,name,bio,avatarVersion}));
+ return {memberId:null,events:[],rsvps:[],comments:[],expenses:[],changes:[],acks:[],profiles};
+}
 export function profileFields(body) {
  if(typeof body.name!=='string'||!body.name.trim()||body.name.trim().length>24||/[\u0000-\u001f\u007f]/.test(body.name))invalid('昵称需为 1–24 个字符');
  if(typeof body.bio!=='string'||body.bio.length>300||/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(body.bio))invalid('个人说明请控制在 300 个字符以内');

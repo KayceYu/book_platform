@@ -5,11 +5,10 @@ import {apiRequest} from './transport.mjs';
 const defaults={MEMBERS,member:id=>MEMBERS.find(m=>m.id===id)};
 export const MembersContext=createContext(defaults);
 export const useMembers=()=>useContext(MembersContext);
-export function useMemberDirectory(profiles,current) {
+export function useMemberDirectory(profiles) {
  const cache=useRef(new Map()),[photos,setPhotos]=useState({});
  useEffect(()=>{
   let active=true;
-  if(!current){for(const image of cache.current.values())URL.revokeObjectURL(image.url);cache.current.clear();setPhotos({});return;}
   for(const [id,image] of cache.current){if(!profiles.some(p=>p.memberId===id&&p.avatarVersion===image.version)){URL.revokeObjectURL(image.url);cache.current.delete(id);setPhotos(old=>{const next={...old};delete next[id];return next;});}}
   for(const profile of profiles){
    if(!profile.avatarVersion||cache.current.get(profile.memberId)?.version===profile.avatarVersion)continue;
@@ -22,7 +21,7 @@ export function useMemberDirectory(profiles,current) {
    }catch{}})();
   }
   return()=>{active=false;};
- },[profiles,current]);
+ },[profiles]);
  useEffect(()=>()=>{for(const image of cache.current.values())URL.revokeObjectURL(image.url);},[]);
  const members=MEMBERS.map(base=>{const profile=profiles.find(p=>p.memberId===base.id);return {...base,...profile,id:base.id,originalName:base.name,photo:profile?.avatarVersion&&photos[base.id]?.version===profile.avatarVersion?photos[base.id].url:null};});
  return {MEMBERS:members,member:id=>members.find(m=>m.id===id)};

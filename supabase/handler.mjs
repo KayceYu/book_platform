@@ -2,6 +2,7 @@ import {api} from '../server/api.mjs';
 import {member} from '../src/domain.mjs';
 import {postgresDatabase} from './postgres-adapter.mjs';
 import {hashCode,issueSession,verifySession} from './auth.mjs';
+import {publicProfileState} from '../server/profiles.mjs';
 
 const allowedOrigins=['https://kayceyu.github.io','http://127.0.0.1:4173'];
 function response(data,status=200,origin=null,extraHeaders={}) {
@@ -33,10 +34,10 @@ export function createHandler(client,serviceKey) {
    const token=request.headers.get('authorization')?.replace(/^Bearer\s+/i,'')||'';
    const actor=token?await verifySession(token,serviceKey):null;
    if(!actor||!member(actor)){
-    if(url.pathname==='/api/state'&&request.method==='GET')return response({memberId:null,events:[],rsvps:[],comments:[],expenses:[],changes:[],acks:[]},200,origin);
-    return response({error:'请先输入个人口令登录'},401,origin);
+    if(url.pathname==='/api/state'&&request.method==='GET')return response(await publicProfileState(db),200,origin);
+    if(!(request.method==='GET'&&/^\/api\/profiles\/[^/]+\/avatar$/.test(url.pathname)))return response({error:'请先输入个人口令登录'},401,origin);
    }
-   const headers=new Headers(request.headers);headers.delete('cookie');headers.set('X-Member-Id',actor);
+   const headers=new Headers(request.headers);headers.delete('cookie');headers.delete('X-Member-Id');if(actor&&member(actor))headers.set('X-Member-Id',actor);
    const forwarded=new Request(url,{method:request.method,headers,...(!['GET','HEAD'].includes(request.method)?{body:await request.arrayBuffer()}:{})});
    return await api(forwarded,db,{allowedOrigins});
   }catch(error){console.error('Cougeju request failed',error instanceof Error?error.message:'Unknown error');return response({error:'共享服务暂时无法完成请求，请稍后重试'},500,origin);}

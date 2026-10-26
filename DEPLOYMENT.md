@@ -52,6 +52,6 @@ ALLOWED_ORIGINS=https://kayceyu.github.io DATABASE_PATH=/data/cougeju.sqlite npm
 
 ## 个人资料与头像
 
-`PUT /api/profile` 仅修改会话所属成员的昵称、个人说明和头像，使用资料版本防止跨设备覆盖。资料保存在私有 `app_meta` 的 `profile:<memberId>` 条目，头像单独保存在 `avatar:<memberId>`；复用现有服务端权限，无需新增公开表。活动同步只返回资料与头像版本，头像由登录后的 `GET /api/profiles/:memberId/avatar` 单独获取并缓存。
+`PUT /api/profile` 仅修改会话所属成员的昵称、个人说明和头像，使用资料版本防止跨设备覆盖。资料保存在私有 `app_meta` 的 `profile:<memberId>` 条目，头像单独保存在 `avatar:<memberId>`；复用现有服务端权限，无需新增公开表。活动同步只返回资料与头像版本，昵称、个人说明和头像为公开资料，游客也可读取；头像由 `GET /api/profiles/:memberId/avatar` 单独获取并缓存。游客活动状态只包含公开资料，活动、报名、评论和费用仍需登录。
 
 浏览器将照片居中裁成 384×384 的 JPG 并移除原图元数据；服务端校验格式、尺寸和 64 KB 上限。个人说明最多 300 个字符、昵称最多 24 个字符，头像可恢复默认。原图不会上传。
