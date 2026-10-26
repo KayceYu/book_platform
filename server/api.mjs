@@ -1,5 +1,6 @@
 import { MEMBERS, member, STATUS, RSVP, splitExpense } from '../src/domain.mjs';
 import { seed } from './seed.mjs';
+import {listProfiles,profileFields,avatarBytes} from './profiles.mjs';
 const json = (data, status=200, headers={}) => new Response(JSON.stringify(data), {status,headers:{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store',...headers}});
 const fail = (message,status=400) => { const e=new Error(message);e.status=status;throw e; };
 const text = (value,max=500) => typeof value === 'string' ? value.trim().slice(0,max) : '';
@@ -33,9 +34,29 @@ async function handleApi(request,db,{allowedOrigins=[]}={}) {
     if(method!=='GET'&&request.headers.get('origin')&&request.headers.get('origin')!==url.origin&&!allowedOrigins.includes(request.headers.get('origin')))fail('请求来源不一致',403);
     if(path==='/api/identity'&&method==='POST'){const b=await request.json();if(b.memberId!==null&&!member(b.memberId))fail('请从六位成员中选择身份');return json({memberId:b.memberId},200,{'Set-Cookie':`cg_member=${b.memberId||''}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${b.memberId?31536000:0}${url.protocol==='https:'?'; Secure':''}`});}
     await seed(db);
-    if(path==='/api/state'&&method==='GET'){const [events,rsvps,comments,expenses,changes,acks]=await Promise.all([allData(db,'events'),allData(db,'rsvps'),allData(db,'comments'),allData(db,'expenses'),allData(db,'changes'),db.prepare('SELECT event_id as eventId, member_id as memberId, version FROM acknowledgements').all()]);const visible=events.filter(e=>e.status!=='draft'||e.creator===actor), ids=new Set(visible.map(e=>e.id));return json({memberId:actor,events:visible,rsvps:rsvps.filter(r=>ids.has(r.eventId)).map(r=>{const event=visible.find(e=>e.id===r.eventId);return actor===r.memberId||actor===event.creator||actor===event.stages.find(s=>s.id===r.stageId)?.leader?r:{...r,needs:''};}),comments:comments.filter(r=>ids.has(r.eventId)),expenses:expenses.filter(r=>ids.has(r.eventId)),changes:changes.filter(r=>ids.has(r.eventId)),acks:acks.results.filter(a=>ids.has(a.eventId))});}
+    if(path==='/api/state'&&method==='GET'){const [events,rsvps,comments,expenses,changes,acks]=await Promise.all([allData(db,'events'),allData(db,'rsvps'),allData(db,'comments'),allData(db,'expenses'),allData(db,'changes'),db.prepare('SELECT event_id as eventId, member_id as memberId, version FROM acknowledgements').all()]);const visible=events.filter(e=>e.status!=='draft'||e.creator===actor), ids=new Set(visible.map(e=>e.id));return json({memberId:actor,events:visible,rsvps:rsvps.filter(r=>ids.has(r.eventId)).map(r=>{const event=visible.find(e=>e.id===r.eventId);return actor===r.memberId||actor===event.creator||actor===event.stages.find(s=>s.id===r.stageId)?.leader?r:{...r,needs:''};}),comments:comments.filter(r=>ids.has(r.eventId)),expenses:expenses.filter(r=>ids.has(r.eventId)),changes:changes.filter(r=>ids.has(r.eventId)),acks:acks.results.filter(a=>ids.has(a.eventId)),profiles:actor?await listProfiles(db):[]});}
     if(!actor)fail('请先选择你的身份',401);
+    const avatarMatch=path.match(/^\/api\/profiles\/([^/]+)\/avatar$/);
+    if(avatarMatch&&method==='GET'){
+      if(!member(avatarMatch[1]))fail('成员不存在',404);
+      const row=await db.prepare('SELECT value FROM app_meta WHERE key=?').bind('avatar:'+avatarMatch[1]).first();
+      if(!row)fail('尚未设置头像',404);
+      return new Response(avatarBytes(row.value),{headers:{'Content-Type':'image/jpeg','Cache-Control':'private, max-age=300','X-Content-Type-Options':'nosniff'}});
+    }
     const body=method==='GET'?{}:await request.json();
+    if(path==='/api/profile'&&method==='PUT'){
+      if(body.memberId&&body.memberId!==actor)fail('只能修改自己的资料',403);
+      const fields=profileFields(body),key='profile:'+actor;
+      const old=await db.prepare('SELECT value FROM app_meta WHERE key=?').bind(key).first(),previous=old?JSON.parse(old.value):null;
+      if((body.version??null)!==(previous?.version??null))fail('资料已在其他设备更新，请刷新后再修改',409);
+      const version=uid(),avatarChanged=body.avatar!==undefined;
+      const profile={memberId:actor,...fields,version,avatarVersion:avatarChanged?(body.avatar?version:null):(previous?.avatarVersion||null),updatedAt:stamp()};
+      const value=JSON.stringify(profile);
+      const statements=[old?db.prepare('UPDATE app_meta SET value=? WHERE key=? AND value=?').bind(value,key,old.value):db.prepare('INSERT INTO app_meta(key,value) VALUES(?,?) ON CONFLICT(key) DO NOTHING').bind(key,value)];
+      if(avatarChanged)statements.push(body.avatar===null?db.prepare('DELETE FROM app_meta WHERE key=? AND (SELECT value FROM app_meta WHERE key=?)=?').bind('avatar:'+actor,key,value):db.prepare('INSERT INTO app_meta(key,value) SELECT ?,? WHERE (SELECT value FROM app_meta WHERE key=?)=? ON CONFLICT(key) DO UPDATE SET value=excluded.value').bind('avatar:'+actor,body.avatar,key,value));
+      const saved=await db.batch(statements);if(!saved[0]?.meta.changes)fail('资料已更新，请刷新后再修改',409);
+      return json({profile});
+    }
     if(path==='/api/events'&&method==='POST'){const e=validateEvent(body,actor);e.id=uid();e.version=1;e.isDemo=false;e.createdAt=stamp();await db.prepare('INSERT INTO events(id,data,version,created_at) VALUES(?,?,?,?)').bind(e.id,JSON.stringify(e),1,e.createdAt).run();return json({id:e.id},201);}
     const match=path.match(/^\/api\/events\/([^/]+)(?:\/(.*))?$/); if(!match)fail('接口不存在',404);
     const [,id,action]=match,e=await getEvent(db,id);if(e.status==='draft'&&e.creator!==actor)fail('该活动尚未发布',403);

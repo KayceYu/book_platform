@@ -60,3 +60,5 @@ node tests/browser.mjs
 ## GitHub Pages
 
 自动部署配置见 [.github/workflows/deploy-pages.yml](.github/workflows/deploy-pages.yml)，独立共享后端及首次启用步骤见 [DEPLOYMENT.md](DEPLOYMENT.md)。静态前端使用 `npm run build:pages` 构建到 `dist/client`，子路径为 `/book_platform/`；后端地址配置于 `config/pages.json`。
+
+个人资料：登录后在“我的 → 编辑资料”修改昵称、个人说明和头像，或从自己的小队成员卡片进入。头像支持手机拍照及本地图片，保存前居中裁剪并压缩；可恢复默认头像。资料更新会同步到活动、评论、费用和小队展示，固定身份与口令保持关联。
